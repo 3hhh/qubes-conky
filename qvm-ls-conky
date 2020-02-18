@@ -1,0 +1,48 @@
+#!/bin/bash
+
+runningVMs=""
+notRunningVMs=""
+formatStr='${color %s}%s${goto 140}%s${goto 270}%s${goto 390}%s${goto 520}%s${color}'
+header="$(printf "$formatStr" "grey" "NAME" "TEMPLATE" "NETVM" "IP" "DISK")"
+intRegex='^[0-9]+'
+
+qvmLsOut="$(qvm-ls --no-spinner -O NAME,TEMPLATE,NETVM,IP,PRIV-USED,ROOT-USED,CLASS,LABEL,STATE)" || { echo '${color red}ERROR: Failed to run qvm-ls.${color}' ; exit 1 ; }
+
+#remove header
+qvmLsOut="$(echo "$qvmLsOut" | sed 1d)"
+
+#parse qvm-ls
+while IFS= read -r line ; do
+	#parse
+	#NOTE: using read is much faster than cut -d and only works because qvm-ls uses a dash to indicate empty fields
+	IFS=" " read -r vm template netvm ip privUsed rootUsed class label state <<< "$line"
+	
+	[[ "$privUsed" =~ $intRegex ]] && privUsed="${BASH_REMATCH[0]}" || privUsed=0
+	[[ "$rootUsed" =~ $intRegex ]] && rootUsed="${BASH_REMATCH[0]}" || rootUsed=0
+	disk=$(( $privUsed > $rootUsed ? $privUsed : $rootUsed  ))
+	disk="$(printf "%d %%" "$disk")"
+
+	#make sure black is not used
+	[[ "$label" == "black" ]] && label="Peru"
+
+	#generate output
+	out="$(printf "$formatStr" "$label" "$vm" "$template" "$netvm" "$ip" "$disk")"
+
+	#save output
+	if [[ "$state" == "Running" ]] ; then
+		runningVMs="$runningVMs"$'\n'"$out"
+	else
+		notRunningVMs="$notRunningVMs"$'\n'"$out"
+	fi
+done <<< "$qvmLsOut"
+
+#sort
+runningVMs="$(echo "$runningVMs" | sort)"
+notRunningVMs="$(echo "$notRunningVMs" | sort)"
+
+#print
+echo '${color grey}Running Qubes:${color}'
+echo "$header$runningVMs"
+echo ""
+echo '${color grey}Stopped Qubes:${color}'
+echo "$header$notRunningVMs"

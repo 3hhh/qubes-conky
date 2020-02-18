@@ -1,0 +1,40 @@
+#!/bin/bash
+#unfortunately conky doesn't support multiple conky columns easily so we simply start multiple conky instances
+
+#name & directory of this script (hopefully...)
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+#SCRIPT_NAME="$(basename "$0")"
+
+#parseConf [input file] [output file]
+function parseConf {
+cd "$SCRIPT_DIR"
+local in="$1"
+local out="$2"
+
+local line=""
+local re='^--INCLUDE_CONKY "(.*)"$'
+while IFS= read -r line ; do
+	if [[ "$line" =~ $re ]] ; then
+		local file="${BASH_REMATCH[1]}"
+		[ -f "$file" ] && parseConf "$file" "$out"
+	else
+		echo "$line" >> "$out"
+	fi
+done < "$in"
+cd - &> /dev/null
+}
+
+#startConkyInstance [conky config file]
+function startConkyInstance {
+local conf="$SCRIPT_DIR/$1"
+local finalConf="$(mktemp)"
+echo "$1: $finalConf"
+parseConf "$conf" "$finalConf"
+
+conky -c "$finalConf"
+}
+
+killall conky
+startConkyInstance "conky_perf.conf"
+startConkyInstance "conky_qubes.conf"
+startConkyInstance "conky_qubesSettings.conf"
