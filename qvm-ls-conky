@@ -52,6 +52,8 @@ while IFS= read -r line ; do
 		runningVMs="$runningVMs"$'\n'"$out"
 	elif [[ "$state" == "Paused" ]] ; then
 		runningVMs="$runningVMs"$'\n'"p:$out"
+	elif [[ "$state" == "Suspended" ]] ; then
+		runningVMs="$runningVMs"$'\n'"s:$out"
 	elif [[ "$state" == "Transient" ]] ; then
 		runningVMs="$runningVMs"$'\n'"t:$out"
 	else
