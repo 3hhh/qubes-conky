@@ -1,0 +1,83 @@
+#!/bin/bash
+#
+# Variant of smartctl to generate colored output for conky.
+# 
+# Usage:   smartctl-conky [disk]
+# Example: smartctl-conky /dev/sda
+#
+# Copyright (C) 2020  David Hobach  GPLv3
+# version: 1.0
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+# 
+
+#+error [msg]
+function error {
+local msg="$1"
+echo '${color red}ERROR: '"$msg"'${color}'
+exit 1
+}
+
+#+colorize [prefix] [str] [acceptable regex]
+function colorize {
+local prefix="$1"
+local str="$2"
+local acceptRe="$3"
+
+echo -n '${color grey}'"$prefix"': ${goto 250}${color}'
+
+if [[ "$str" =~ $acceptRe ]] ; then
+	echo '${color green}'"$str"'${color}'
+else
+	echo '${color red}'"$str"'${color}'
+fi
+return 0
+}
+
+[ $# -ne 1 ] && error "Please specify a disk."
+
+disk="$1"
+command -v "smartctl" &> /dev/null || error "smartctl is not installed."
+smart="$(smartctl -x "$disk")" || error "smartctl reported an issue. Maybe not run as root?"
+
+overall='${color red}UNCLEAR${color}'
+pending='' #some disks don't have that attribute --> leave it out then
+timeout='' #some disks don't have that attribute --> leave it out then
+uncorrectable='${color red}UNCLEAR${color}'
+offlineUncorrectable='${color red}UNCLEAR${color}'
+
+overallRe='^SMART overall-health self-assessment test result: (.*)$'
+pendingRe='^.*Current_Pending_Sector.*([0-9]+)$'
+offlineUncorrectableRe='^.*Offline_Uncorrectable.*([0-9]+)$'
+uncorrectableRe='^.*Reported_Uncorrect.*([0-9]+)$'
+timeoutRe='^.*Command_Timeout.*([0-9]+)$'
+while IFS= read -r line ; do
+	if [[ "$line" =~ $overallRe ]] ; then
+		overall="$(colorize "$disk SMART Check" "${BASH_REMATCH[1]}" 'PASSED')"
+	elif [[ "$line" =~ $pendingRe ]] ; then
+		pending="$(colorize "Pending to Unc. Sectors" "${BASH_REMATCH[1]}" 0)"
+	elif [[ "$line" =~ $offlineUncorrectableRe ]] ; then
+		offlineUncorrectable="$(colorize "Uncorrectable Sectors" "${BASH_REMATCH[1]}" 0)"
+	elif [[ "$line" =~ $uncorrectableRe ]] ; then
+		uncorrectable="$(colorize "Uncorrectable Errors" "${BASH_REMATCH[1]}" 0)"
+	elif [[ "$line" =~ $timeoutRe ]] ; then
+		timeout="$(colorize "Command Timeout" "${BASH_REMATCH[1]}" 0)"
+	fi
+done <<< "$smart"
+
+echo "$overall"
+echo "$offlineUncorrectable"
+[ -n "$pending" ] && echo "$pending"
+[ -n "$timeout" ] &&  echo "$timeout"
+echo "$uncorrectable"
