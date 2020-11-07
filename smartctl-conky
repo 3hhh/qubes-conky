@@ -49,7 +49,7 @@ return 0
 
 disk="$1"
 command -v "smartctl" &> /dev/null || error "smartctl is not installed."
-smart="$(smartctl -x "$disk")" || error "smartctl reported an issue. Maybe not run as root?"
+smart="$(sudo smartctl -x "$disk")" || error "smartctl reported an issue."
 
 overall='${color red}UNCLEAR${color}'
 pending='' #some disks don't have that attribute --> leave it out then
@@ -58,10 +58,10 @@ uncorrectable='${color red}UNCLEAR${color}'
 offlineUncorrectable='${color red}UNCLEAR${color}'
 
 overallRe='^SMART overall-health self-assessment test result: (.*)$'
-pendingRe='^.*Current_Pending_Sector.*([0-9]+)$'
-offlineUncorrectableRe='^.*Offline_Uncorrectable.*([0-9]+)$'
-uncorrectableRe='^.*Reported_Uncorrect.*([0-9]+)$'
-timeoutRe='^.*Command_Timeout.*([0-9]+)$'
+pendingRe='^.*Current_Pending_Sector.*[ ]+([0-9]+)$'
+offlineUncorrectableRe='^.*Offline_Uncorrectable.*[ ]+([0-9]+)$'
+uncorrectableRe='^.*Reported_Uncorrect.*[ ]+([0-9]+)$'
+timeoutRe='^.*Command_Timeout.*[ ]+([0-9]+)$'
 while IFS= read -r line ; do
 	if [[ "$line" =~ $overallRe ]] ; then
 		overall="$(colorize "$disk SMART Check" "${BASH_REMATCH[1]}" 'PASSED')"
