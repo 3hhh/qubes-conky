@@ -40,12 +40,14 @@ log="$1"
 hours="$2"
 [ -n "$hours" ] || usage
 
-input="$(set -o pipefail ; grep -E '^.*type=Policy.Device.Update+.*target.new=(block|reject)' "$log" | tail -n10)" || error "Failed to get the input."
+input="$(set -o pipefail ; grep -E '^.*type='"'"'Policy.Device.Update'"'" "$log")" || error "Failed to get the input."
+input="$(echo "$input" | grep -E '^.*target.new='"'"'(block|reject)'"'" | tail -n10)"
 now="$(date +%s)" || error "Failed to obtain the current time."
 
-re='^\[([0-9]+).* device='"'"'.* id ([^ ]+) serial .* name "([^"]*)".*$'
+re='^\[([0-9]+).* id ([^ ]+) .* name "([^"]*)".*$'
 cnt=0
 while IFS= read -r line ; do
+  [ -z "$line" ] && continue
   #parse
   [[ "$line" =~ $re ]] || error "Not matching: $line"$'\n'"This is unexpected. Format change?"
   ts="${BASH_REMATCH[1]}"
