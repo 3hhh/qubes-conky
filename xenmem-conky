@@ -1,0 +1,41 @@
+#!/bin/bash
+# 
+# Extract Xen memory info for conky.
+# 
+# Copyright (C) 2021  David Hobach  GPLv3
+# version: 0.8
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+# 
+
+xlout="$(xl info)" || { echo '${color red}ERROR: Failed to run xl info.${color}' ; exit 1 ; }
+
+total_mem_re='^total_memory[ ]+:[ ]*([0-9]+)$'
+free_mem_re='^free_memory[ ]+:[ ]*([0-9]+)$'
+total_mem=""
+free_mem=""
+while IFS= read -r line ; do
+  if [[ "$line" =~ $total_mem_re ]] ; then
+    total_mem="${BASH_REMATCH[1]}"
+  elif [[ "$line" =~ $free_mem_re ]] ; then
+    free_mem="${BASH_REMATCH[1]}"
+  fi
+done <<< "$xlout"
+
+[ -z "$free_mem" ] && echo '${color red}ERROR: Failed to extract the free memory.${color}' && exit 1
+[ -z "$total_mem" ] && echo '${color red}ERROR: Failed to extract the total memory.${color}' && exit 1
+
+used=$(( $total_mem - $free_mem ))
+perc=$(( 100*$used / $total_mem ))
+printf '%s%% = %s.%.2sGiB / %s.%.2sGiB\n' "$perc" $(( $used / 1000 )) $(( $used % 1000 )) $(( $total_mem / 1000 )) $(( $total_mem % 1000 ))
