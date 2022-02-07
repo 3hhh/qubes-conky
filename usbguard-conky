@@ -3,13 +3,13 @@
 # List recently blocked dom0 USB devices for conky.
 #
 # If you use `usbguard, this can be used as such in your custom conky
-# config:
+# config (make sure the log file is readable by conky):
 # ```
-# ${execpi 60 sudo ./usbguard_conky "/var/log/usbguard.log" 12}
+# ${execpi 60 ./usbguard_conky "/var/log/usbguard.log" 12}
 # ```
 #
-# Copyright (C) 2021  David Hobach  GPLv3
-# version: 0.8
+# Copyright (C) 2022  David Hobach  GPLv3
+# version: 0.9
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,20 +31,34 @@ function error {
 }
 
 function usage {
-  error "Usage: usbguard_conky [usbguard log file] [hours to look back]"
+  error "Usage: usbguard_conky [usbguard log file] [hours to look back] [ignore list]"
 }
 
-[ $EUID -eq 0 ] || error "This script must be run as root."
+#on_list [element] [list]
+#[list]: newline-separated list of strings
+function on_list {
+  local e="$1"
+  local list="$2"
+
+  local line=
+  while IFS= read -r line ; do
+    [[ "$line" == "$e" ]] && return 0
+  done <<< "$list"
+
+  return 1
+}
+
 log="$1"
 [ -n "$log" ] || usage
 hours="$2"
 [ -n "$hours" ] || usage
+ignore="$3"
 
-input="$(set -o pipefail ; grep -E '^.*type='"'"'Policy.Device.Update'"'" "$log")" || error "Failed to get the input."
+input="$(set -o pipefail ; grep -aE '^.*type='"'"'Policy.Device.Update'"'" "$log")" || error "Failed to get the input."
 input="$(echo "$input" | grep -E '^.*target.new='"'"'(block|reject)'"'" | tail -n10)"
 now="$(date +%s)" || error "Failed to obtain the current time."
 
-re='^\[([0-9]+).* id ([^ ]+) .* name "([^"]*)".*$'
+re='^\[([0-9]+).* id ([^ ]+) .*name "([^"]*)".*$'
 cnt=0
 while IFS= read -r line ; do
   [ -z "$line" ] && continue
@@ -55,7 +69,7 @@ while IFS= read -r line ; do
   name="${BASH_REMATCH[3]}"
 
   diff=$(( ( $now - $ts ) / 3600 ))
-  if [ $diff -lt $hours ] ; then
+  if [ $diff -lt $hours ] && ! on_list "$id" "$ignore" ; then
     cnt=$(( cnt + 1 ))
     ts_readable="$(date "--date=@$ts" +'%F %H:%M:%S')" || error "Failed to convert $ts to a readable format."
     echo '${color red}'"$ts_readable $name ($id)"'${color}'
