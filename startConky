@@ -43,14 +43,15 @@ done < "$in"
 #startConkyInstance [conky config file]
 function startConkyInstance {
 local conf="$SCRIPT_DIR/$1"
-local finalConf="$(mktemp)"
+local finalConf=
+finalConf="$(mktemp)" || exit 1
 echo "$1: $finalConf"
 parseConf "$conf" "$finalConf"
 
 conky -c "$finalConf"
 }
 
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR" || exit 1
 killall conky
 #unfortunately conky doesn't support multiple conky columns easily so we simply start multiple conky instances
 startConkyInstance "conky_perf.conf"
