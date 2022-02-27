@@ -56,8 +56,8 @@ hours="$2"
 ignore="$3"
 
 if [ -z "$log" ] ; then
-  input="$(journalctl -q -b0 "AUDIT_FIELD_EXE=/usr/sbin/usbguard-daemon" -o "short-unix")" || error "Failed to read the journal."
-  input="$(echo "$input" | grep -E '^.*op="changed-authorization-state-for".*target="(block|reject)"' | tail -n10)"
+  input="$(journalctl -q -S "-${hours}h" -o "short-unix" "AUDIT_FIELD_EXE=/usr/sbin/usbguard-daemon")" || error "Failed to read the journal."
+  input="$(echo "$input" | grep -E '^.*op="changed-authorization-state-for".*target="(block|reject)"')"
 
   #parse the hex device_rule stuff
   output=""
@@ -71,7 +71,7 @@ if [ -z "$log" ] ; then
   input="$output"
 else
   input="$(cat "$log")" || error "Failed to read $log."
-  input="$(echo "$input" | grep -aE '^.*type='"'"'Policy.Device.Update'"'" | grep -E '^.*target.new='"'"'(block|reject)'"'" | tail -n10)"
+  input="$(echo "$input" | grep -aE '^.*type='"'"'Policy.Device.Update'"'" | grep -E '^.*target.new='"'"'(block|reject)'"'")"
 fi
 
 now="$(date +%s)" || error "Failed to obtain the current time."
