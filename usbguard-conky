@@ -9,7 +9,7 @@
 # ```
 #
 # Copyright (C) 2022  David Hobach  GPLv3
-# version: 0.9
+# version: 1.0
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,9 @@ function error {
 }
 
 function usage {
-  error "Usage: usbguard_conky [usbguard log file] [hours to look back] [ignore list]"
+  error "Usage: usbguard_conky [usbguard log file] [hours to look back] [ignore list]
+
+Pass an empty usbguard log file to read from the journal."
 }
 
 #on_list [element] [list]
@@ -49,16 +51,32 @@ function on_list {
 }
 
 log="$1"
-[ -n "$log" ] || usage
 hours="$2"
 [ -n "$hours" ] || usage
 ignore="$3"
 
-input="$(set -o pipefail ; grep -aE '^.*type='"'"'Policy.Device.Update'"'" "$log")" || error "Failed to get the input."
-input="$(echo "$input" | grep -E '^.*target.new='"'"'(block|reject)'"'" | tail -n10)"
+if [ -z "$log" ] ; then
+  input="$(journalctl -q -b0 "AUDIT_FIELD_EXE=/usr/sbin/usbguard-daemon" -o "short-unix")" || error "Failed to read the journal."
+  input="$(echo "$input" | grep -E '^.*op="changed-authorization-state-for".*target="(block|reject)"' | tail -n10)"
+
+  #parse the hex device_rule stuff
+  output=""
+  re='^([0-9]+).* device_rule=([A-F0-9]+) ' #everything is encoded as hex in device_rule
+  while IFS= read -r line ; do
+    [ -z "$line" ] && continue
+    [[ "$line" =~ $re ]] || error "Unexpected format: $line"
+    match="$(xxd -r -p <<< ${BASH_REMATCH[2]})" || error "Hex parsing error: $line"
+    output="$output"$'\n'"${BASH_REMATCH[1]} $match"
+  done <<< "$input"
+  input="$output"
+else
+  input="$(cat "$log")" || error "Failed to read $log."
+  input="$(echo "$input" | grep -aE '^.*type='"'"'Policy.Device.Update'"'" | grep -E '^.*target.new='"'"'(block|reject)'"'" | tail -n10)"
+fi
+
 now="$(date +%s)" || error "Failed to obtain the current time."
 
-re='^\[([0-9]+).* id ([^ ]+) .*name "([^"]*)".*$'
+re='^\[?([0-9]+).* id ([^ ]+) .*name "([^"]*)".*$'
 cnt=0
 while IFS= read -r line ; do
   [ -z "$line" ] && continue
