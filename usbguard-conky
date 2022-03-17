@@ -5,11 +5,11 @@
 # If you use `usbguard, this can be used as such in your custom conky
 # config (make sure the log file is readable by conky):
 # ```
-# ${execpi 60 ./usbguard_conky "/var/log/usbguard.log" 12}
+# ${execpi 60 ./usbguard_conky -p "" 12}
 # ```
 #
 # Copyright (C) 2022  David Hobach  GPLv3
-# version: 1.0
+# version: 1.1
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,9 +31,12 @@ function error {
 }
 
 function usage {
-  error "Usage: usbguard_conky [usbguard log file] [hours to look back] [ignore list]
+  error "Usage: usbguard_conky [option] [usbguard log file] [hours to look back] [ignore list]
 
-Pass an empty usbguard log file to read from the journal."
+Pass an empty usbguard log file to read from the journal.
+
+Available options:
+  -p    Also print the usbguard status."
 }
 
 #on_list [element] [list]
@@ -50,10 +53,18 @@ function on_list {
   return 1
 }
 
+printUsbGuard=1
+[[ "$1" == "-p" ]] && printUsbGuard=0 && shift
+
 log="$1"
 hours="$2"
 [ -n "$hours" ] || usage
 ignore="$3"
+
+if [ $printUsbGuard -eq 0 ] ; then
+  systemctl "status" "usbguard" &> /dev/null && ustatus='${color green}running${color}' || ustatus='${color red}stopped${color}'
+  printf '${color grey}usbguard: ${color}%s\n${color grey}blocked USB devices (%sh):${color}\n' "$ustatus" "$hours"
+fi
 
 if [ -z "$log" ] ; then
   input="$(journalctl -q -S "-${hours}h" -o "short-unix" "AUDIT_FIELD_EXE=/usr/sbin/usbguard-daemon")" || error "Failed to read the journal."
