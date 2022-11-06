@@ -1,0 +1,17 @@
+#!/bin/bash
+
+info="$(xl info)" || { echo "ERROR: Failed to run xl info." ; exit 1 ; }
+
+kernel_re='^release[ ]*: ([0-9\.-]+[0-9]).*$'
+xen_re='^xen_version[ ]*: ([0-9\.-]+[0-9]).*$'
+while IFS= read -r line ; do
+  if [[ "$line" =~ $kernel_re ]] ; then
+    kernel="${BASH_REMATCH[1]}"
+  elif [[ "$line" =~ $xen_re ]] ; then
+    xen="${BASH_REMATCH[1]}"
+  fi
+done <<< "$info"
+
+[ -n "$kernel" ] || { echo "ERROR: Failed to extract the kernel version." ; exit 1 ; }
+[ -n "$xen" ] || { echo "ERROR: Failed to extract the Xen version." ; exit 1 ; }
+echo "Kernel: $kernel  Xen: $xen"
