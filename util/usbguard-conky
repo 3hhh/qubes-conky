@@ -46,7 +46,7 @@ function on_list {
   local list="$2"
 
   local line=
-  while IFS= read -r line ; do
+  while IFS= read -r line || [ -n "$line" ] ; do
     [[ "$line" == "$e" ]] && return 0
   done <<< "$list"
 
@@ -73,7 +73,7 @@ if [ -z "$log" ] ; then
   #parse the hex device_rule stuff
   output=""
   re='^([0-9]+).* device_rule=([A-F0-9]+) ' #everything is encoded as hex in device_rule
-  while IFS= read -r line ; do
+  while IFS= read -r line || [ -n "$line" ] ; do
     [ -z "$line" ] && continue
     [[ "$line" =~ $re ]] || error "Unexpected format: $line"
     match="$(xxd -r -p <<< ${BASH_REMATCH[2]})" || error "Hex parsing error: $line"
@@ -89,7 +89,7 @@ now="$(date +%s)" || error "Failed to obtain the current time."
 
 re='^\[?([0-9]+).* id ([^ ]+) .*name "([^"]*)".*$'
 cnt=0
-while IFS= read -r line ; do
+while IFS= read -r line || [ -n "$line" ] ; do
   [ -z "$line" ] && continue
   #parse
   [[ "$line" =~ $re ]] || error "Not matching: $line"$'\n'"This is unexpected. Format change?"

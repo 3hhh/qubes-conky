@@ -31,7 +31,7 @@ qvmLsOut="$(qvm-ls --no-spinner -O NAME,TEMPLATE,NETVM,IP,PRIV-USED,ROOT-USED,CL
 qvmLsOut="$(echo "$qvmLsOut" | sed 1d)"
 
 #parse qvm-ls
-while IFS= read -r line ; do
+while IFS= read -r line || [ -n "$line" ] ; do
 	#parse
 	#NOTE: using read is much faster than cut -d and only works because qvm-ls uses a dash to indicate empty fields
 	IFS=" " read -r vm template netvm ip privUsed rootUsed class label state <<< "$line"
