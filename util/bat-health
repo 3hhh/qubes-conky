@@ -24,8 +24,8 @@ function no_bat {
   exit 0
 }
 
-charge_full="$(cat /sys/class/power_supply/BAT*/charge_full)" || no_bat
+charge_full="$(cat /sys/class/power_supply/BAT*/*_full)" || no_bat
 [ -n "$charge_full" ] || no_bat
-charge_full_design="$(cat /sys/class/power_supply/BAT*/charge_full_design)" || no_bat
+charge_full_design="$(cat /sys/class/power_supply/BAT*/*_full_design)" || no_bat
 [ -n "$charge_full_design" ] || no_bat
 echo "$(( 100 * $charge_full / $charge_full_design ))%"
